@@ -1,2 +1,2 @@
-# fcb-fp
-外存服務模組
+# fcb-lion
+fcb-lion for core banking
