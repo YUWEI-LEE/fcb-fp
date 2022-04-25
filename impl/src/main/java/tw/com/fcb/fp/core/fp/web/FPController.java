@@ -1,7 +1,11 @@
 package tw.com.fcb.fp.core.fp.web;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
+import org.hibernate.id.enhanced.LegacyHiLoAlgorithmOptimizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +20,7 @@ import tw.com.fcb.fp.core.fp.common.enums.CrcyCode;
 import tw.com.fcb.fp.core.fp.respository.entity.FPCuster;
 import tw.com.fcb.fp.core.fp.respository.entity.FPMaster;
 import tw.com.fcb.fp.core.fp.service.FPCService;
+import tw.com.fcb.fp.core.fp.service.cmd.TxLogCreatCmd;
 import tw.com.fcb.fp.core.fp.service.vo.FPAccountVo;
 import tw.com.fcb.fp.core.fp.web.FPAccountApi;
 import tw.com.fcb.fp.core.fp.web.dto.FPAccountDto;
@@ -87,7 +92,63 @@ public class FPController implements FPAccountApi {
 
 		return response;
 	}
+	
+//	存入交易：增加該幣別餘額，若該幣別不存在則ins
+	public Response<FPAccountDto> depositFpm(@PathVariable("account") String account, @PathVariable("crcy") String crcy,
+			@RequestParam BigDecimal addAmt,@RequestParam(required = false) String memo ) {
+		
+		Response<FPAccountDto> response = new Response<FPAccountDto>();
+		
+		// 驗證 Request
+		FPAccountVo fpAccountVo = fpcService.getByfpcAccount(account);
+		if (fpAccountVo == null) {
+			response.of("D123", "此帳號 "+ account +" 不存在，請重新輸入", null); 
+			return response;
+		}
+		
+		// 呼叫服務
+		FPAccountCreateRequest createRequest = new FPAccountCreateRequest();
+		createRequest.setAccountNo(fpAccountVo.getAccountNo());
+		createRequest.setBookType(fpAccountVo.getBookType());
+		createRequest.setCrcyCode(crcy);
+		createRequest.setCustomerIdno(fpAccountVo.getCustomerIdno());
+		try {
+			CrcyCode.valueOf(crcy);
+			//無幣別餘額則新增fpm
+			if (fpcService.getByfpmCurrencyBal(account, crcy) == null) {
+				fpcService.createFpm(fpAccountDtoMapper.toCreateCmd(createRequest));
+			}
+			//入帳
+			FPAccountDto fpAccountDto = fpAccountDtoMapper.fromVo(fpcService.depositFpm(account, crcy, addAmt));
+			BigDecimal aftBal = fpcService.getByfpmCurrencyBal(account, crcy);
+			response.of("0000", "交易成功", fpAccountDto);
+			//寫入交易明細
+			String txnMemo;
+			if (memo == null) {
+				txnMemo = "轉帳存入";
+			}else {
+				txnMemo = memo;
+			}
+			String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+			LocalDate todaysDate = LocalDate.now();
+			TxLogCreatCmd txLogCreatCmd = TxLogCreatCmd.builder()
+										.account(account).crcy(crcy).txDate(todaysDate).txDTime(time).memo(txnMemo)
+										.txAmt(addAmt).balance(aftBal).build();
+			
+			fpcService.writeTxLog(txLogCreatCmd);
 
+		} catch (IllegalArgumentException e) {
+			response.of("M502", "幣別"+ crcy+"輸入錯誤", null);
+			return response;
+		} catch (Exception e) {
+			System.out.println("err =" + e);
+			response.of("9999", "交易失敗，請重新輸入", null);
+		}
+
+		return response;
+	}
+
+//	開戶交易：新增帳號資訊，單幣別存摺增加幣別資訊
 	@Override
 	public Response<FPAccountDto> create(FPAccountCreateRequest createRequest) {
 		Response<FPAccountDto> response = new Response<FPAccountDto>();

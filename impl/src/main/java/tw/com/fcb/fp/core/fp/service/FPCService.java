@@ -13,10 +13,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import tw.com.fcb.fp.core.fp.respository.FPCustomerRepository;
+import tw.com.fcb.fp.core.fp.respository.TxLogRepository;
 import tw.com.fcb.fp.core.fp.respository.entity.FPCuster;
 import tw.com.fcb.fp.core.fp.respository.entity.FPMaster;
+import tw.com.fcb.fp.core.fp.respository.entity.TxLog;
 import tw.com.fcb.fp.core.fp.service.cmd.FPAccountCreateCmd;
+import tw.com.fcb.fp.core.fp.service.cmd.TxLogCreatCmd;
 import tw.com.fcb.fp.core.fp.service.mapper.FpAccountVoMapper;
+import tw.com.fcb.fp.core.fp.service.mapper.FpTxLogtVoMapper;
 import tw.com.fcb.fp.core.fp.service.vo.FPAccountVo;
 import tw.com.fcb.fp.core.fp.web.request.FPAccountCreateRequest;
 
@@ -26,9 +30,13 @@ public class FPCService {
 
 	@Autowired
 	FPCustomerRepository fPCustomerRepository;
+	@Autowired
+	TxLogRepository txLogRepository;
 	
 	@Autowired
 	FpAccountVoMapper fpAccountVoMapper;
+	@Autowired
+	FpTxLogtVoMapper fpTxLogtVoMapper;
 	Logger log = LoggerFactory.getLogger(getClass());
 
 	// 傳入帳號，查詢帳號、幣別資訊
@@ -80,6 +88,23 @@ public class FPCService {
 		FPAccountVo fpAccountVo = fpAccountVoMapper.toVo(fpcuster);
 		return fpAccountVo;
 	}
+	
+	// 存入：更新幣別餘額
+	public FPAccountVo depositFpm(String acc, String crcy, BigDecimal addAmt) {
+		FPMaster fPMaster = null;
+		FPCuster fpcuster = fPCustomerRepository.findByfpcAccount(acc);
+		List<FPMaster> fpmArry = fpcuster.getFpmasters();
+		for (FPMaster idx : fpmArry) {
+			if (idx.getFpmCurrency().equals(crcy)) {
+				fPMaster = idx;
+				BigDecimal afterBal = idx.getFpmBalance().add(addAmt);
+				fPMaster.setFpmBalance(afterBal);
+			}
+		}
+		
+		FPAccountVo fpAccountVo = fpAccountVoMapper.toVo(fpcuster);
+		return fpAccountVo;
+	}
 
 	// 新增帳號資訊
 	public FPAccountVo createFpc(FPAccountCreateCmd createCmd) {
@@ -123,7 +148,6 @@ public class FPCService {
 				fpmArry.add(fpMaster);
 				fpcuster.setFpmasters(fpmArry);
 			}else {
-//*********	會出現null 待研究
 				List<FPMaster> fpmArry = fpcuster.getFpmasters();
 				fpmArry.add(fpMaster);
 				fpcuster.setFpmasters(fpmArry);
@@ -138,5 +162,15 @@ public class FPCService {
 
 			return vo;
 		}
+		
+		// 新增交易明細
+				public void writeTxLog(TxLogCreatCmd createCmd) {
+					log.info("createCmd: {}" , createCmd);
+			
+					TxLog txLog = fpTxLogtVoMapper.toEntity(createCmd);
+					txLogRepository.save(txLog);
+					log.info("txLog: {}" , createCmd);
+
+				}
 
 }

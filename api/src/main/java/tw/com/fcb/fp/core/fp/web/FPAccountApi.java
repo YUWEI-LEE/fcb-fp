@@ -34,6 +34,12 @@ public interface FPAccountApi {
 										@RequestParam BigDecimal addAmt,@RequestParam BigDecimal subAmt);
 	
 	
+	@PutMapping("/{account}/{crcy}/deposit")
+	@Operation(description = "存入交易，若幣別不存在則新增FPM", summary="存入交易")
+	public Response<FPAccountDto> depositFpm(@Parameter(description = "帳號", example = "09340123456")
+										@PathVariable("account") String account,@PathVariable("crcy") String crcy,
+										@RequestParam BigDecimal addAmt,@RequestParam String memo);
+	
 	@PostMapping("/")
 	@Operation(description = "新增帳號、幣別資訊", summary="新增帳號、幣別資訊")
 	public Response<FPAccountDto> create(@RequestBody FPAccountCreateRequest createReqeust);
