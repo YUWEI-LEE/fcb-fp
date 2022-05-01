@@ -1,6 +1,9 @@
 package tw.com.fcb.fp.core.fp.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,6 +25,7 @@ import tw.com.fcb.fp.core.fp.service.cmd.TxLogCreatCmd;
 import tw.com.fcb.fp.core.fp.service.mapper.FpAccountVoMapper;
 import tw.com.fcb.fp.core.fp.service.mapper.FpTxLogtVoMapper;
 import tw.com.fcb.fp.core.fp.service.vo.FPAccountVo;
+import tw.com.fcb.fp.core.fp.service.vo.TxLogVo;
 import tw.com.fcb.fp.core.fp.web.request.FPAccountCreateRequest;
 
 @Transactional
@@ -32,7 +36,7 @@ public class FPCService {
 	FPCustomerRepository fPCustomerRepository;
 	@Autowired
 	TxLogRepository txLogRepository;
-	
+
 	@Autowired
 	FpAccountVoMapper fpAccountVoMapper;
 	@Autowired
@@ -84,15 +88,15 @@ public class FPCService {
 				fPMaster.setFpmBalance(afterBal);
 			}
 		}
-		
+
 		FPAccountVo fpAccountVo = fpAccountVoMapper.toVo(fpcuster);
 		return fpAccountVo;
 	}
-	
+
 	// 存入：更新幣別餘額
-	public FPAccountVo depositFpm(String acc, String crcy, BigDecimal addAmt) {
+	public FPAccountVo depositFpm(String account, String crcy, BigDecimal addAmt, String memo) {
 		FPMaster fPMaster = null;
-		FPCuster fpcuster = fPCustomerRepository.findByfpcAccount(acc);
+		FPCuster fpcuster = fPCustomerRepository.findByfpcAccount(account);
 		List<FPMaster> fpmArry = fpcuster.getFpmasters();
 		for (FPMaster idx : fpmArry) {
 			if (idx.getFpmCurrency().equals(crcy)) {
@@ -101,14 +105,77 @@ public class FPCService {
 				fPMaster.setFpmBalance(afterBal);
 			}
 		}
+
+		// 寫入交易明細
+		String txnMemo;
+		if (memo == null) {
+			txnMemo = "轉帳存入";
+		} else {
+			txnMemo = memo;
+		}
+		String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+		LocalDate todaysDate = LocalDate.now();
+		BigDecimal aftBal = getByfpmCurrencyBal(account, crcy);
+		TxLogCreatCmd txLogCreatCmd = TxLogCreatCmd.builder().account(account).crcy(crcy).txDate(todaysDate)
+				.txDTime(time).memo(txnMemo).txAmt(addAmt).balance(aftBal).cdCode("存入").status("A").build();
+		TxLogVo txLogVo = writeTxLog(txLogCreatCmd);
+
+		FPAccountVo fpAccountVo = fpAccountVoMapper.toVo(fpcuster);
+		fpAccountVo.setCrcyCode(crcy);
+		fpAccountVo.setTxnLogId(txLogVo.getId());
+		return fpAccountVo;
+	}
+
+	// 支出：更新幣別餘額
+	public FPAccountVo withdrawFpm(String account, String crcy, BigDecimal subAmt, String memo) {
+		FPMaster fPMaster = null;
+		FPCuster fpcuster = fPCustomerRepository.findByfpcAccount(account);
+		List<FPMaster> fpmArry = fpcuster.getFpmasters();
+		for (FPMaster idx : fpmArry) {
+			if (idx.getFpmCurrency().equals(crcy)) {
+				fPMaster = idx;
+				BigDecimal afterBal = idx.getFpmBalance().subtract(subAmt);
+				fPMaster.setFpmBalance(afterBal);
+			}
+		}
+
+		// 寫入交易明細
+		String txnMemo;
+		if (memo == null) {
+			txnMemo = "轉帳支出";
+		} else {
+			txnMemo = memo;
+		}
+		String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+		LocalDate todaysDate = LocalDate.now();
+		BigDecimal aftBal = getByfpmCurrencyBal(account, crcy);
+		TxLogCreatCmd txLogCreatCmd = TxLogCreatCmd.builder().account(account).crcy(crcy).txDate(todaysDate)
+				.txDTime(time).memo(txnMemo).txAmt(subAmt).balance(aftBal).cdCode("支出").status("A").build();
+		TxLogVo txLogVo = writeTxLog(txLogCreatCmd);
 		
 		FPAccountVo fpAccountVo = fpAccountVoMapper.toVo(fpcuster);
+		fpAccountVo.setCrcyCode(crcy);
+		fpAccountVo.setTxnLogId(txLogVo.getId());
 		return fpAccountVo;
+	}
+
+	// 沖正：輸入txLog_id更新幣別餘額
+	public void undoFpm(Long id) {
+		TxLog txLog = txLogRepository.getById(id);
+		txLog.setStatus("X");
+		FPAccountVo fpAccountVo;
+		if (txLog.getCdCode().equals("存入")) {
+			fpAccountVo = withdrawFpm(txLog.getAccount(), txLog.getCrcy(), txLog.getTxAmt(), "沖正存入");
+		} else {
+			fpAccountVo = depositFpm(txLog.getAccount(), txLog.getCrcy(), txLog.getTxAmt(), "沖正支出");	
+		}
+		TxLog txLogVo = txLogRepository.getById(fpAccountVo.getTxnLogId());
+		txLogVo.setStatus("D");
 	}
 
 	// 新增帳號資訊
 	public FPAccountVo createFpc(FPAccountCreateCmd createCmd) {
-		log.info("createCmd: {}" , createCmd);
+		log.info("createCmd: {}", createCmd);
 
 		FPCuster fpcentity = fpAccountVoMapper.toEntity(createCmd);
 		fpcentity.setFpcStatus("00");
@@ -119,7 +186,7 @@ public class FPCService {
 //		fpcentity.setFpcCustomerId(createCmd.getCustomerIdno());
 //		fpcentity.setBookType(String.valueOf(createCmd.getBookType()));
 		fPCustomerRepository.save(fpcentity);
-		log.info("fpcentity: {}" , fpcentity);
+		log.info("fpcentity: {}", fpcentity);
 
 		FPAccountVo vo = fpAccountVoMapper.toVo(fpcentity);
 //		fpAccountVoMapper等同以下註解!!!
@@ -129,48 +196,51 @@ public class FPCService {
 //		vo.setCustomerIdno(fpcentity.getFpcCustomerId());
 //		vo.setStatus(fpcentity.getFpcStatus());
 //		vo.setValidCrcyCnt(fpcentity.getFpcValidCrcyCnt());
-		log.info("FPAccountVo: {}" , vo);
-		
+		log.info("FPAccountVo: {}", vo);
+
 		return vo;
 	}
 
 	// 新增幣別資訊
-		public FPAccountVo createFpm(FPAccountCreateCmd createCmd) {
-			log.info("createCmd: {}" , createCmd);
-			FPCuster fpcuster = fPCustomerRepository.findByfpcAccount(createCmd.getAccountNo());
-			FPMaster fpMaster  = new FPMaster();
-			fpMaster.setFpmCurrency(String.valueOf(createCmd.getCrcyCode()));
-			fpMaster.setFpmStatus("00");
-			fpMaster.setFpmBalance(new BigDecimal(0.00));
-			
-			if(fpcuster.getFpmasters() == null) {
-				List<FPMaster> fpmArry = new ArrayList<FPMaster>();
-				fpmArry.add(fpMaster);
-				fpcuster.setFpmasters(fpmArry);
-			}else {
-				List<FPMaster> fpmArry = fpcuster.getFpmasters();
-				fpmArry.add(fpMaster);
-				fpcuster.setFpmasters(fpmArry);
-			}
-			
-			fpcuster.setValidCrcyCnt(fpcuster.getValidCrcyCnt() + 1 );
-			fPCustomerRepository.save(fpcuster);
-			log.info("fpcentity: {}" , fpcuster);
+	public FPAccountVo createFpm(FPAccountCreateCmd createCmd) {
+		log.info("createCmd: {}", createCmd);
+		FPCuster fpcuster = fPCustomerRepository.findByfpcAccount(createCmd.getAccountNo());
+		FPMaster fpMaster = new FPMaster();
+		fpMaster.setFpmCurrency(String.valueOf(createCmd.getCrcyCode()));
+		fpMaster.setFpmStatus("00");
+		fpMaster.setFpmBalance(new BigDecimal(0.00));
 
-			FPAccountVo vo = fpAccountVoMapper.toVo(fpcuster);
-			log.info("FPAccountVo: {}" , vo);
-
-			return vo;
+		if (fpcuster.getFpmasters() == null) {
+			List<FPMaster> fpmArry = new ArrayList<FPMaster>();
+			fpmArry.add(fpMaster);
+			fpcuster.setFpmasters(fpmArry);
+		} else {
+			List<FPMaster> fpmArry = fpcuster.getFpmasters();
+			fpmArry.add(fpMaster);
+			fpcuster.setFpmasters(fpmArry);
 		}
-		
-		// 新增交易明細
-				public void writeTxLog(TxLogCreatCmd createCmd) {
-					log.info("createCmd: {}" , createCmd);
-			
-					TxLog txLog = fpTxLogtVoMapper.toEntity(createCmd);
-					txLogRepository.save(txLog);
-					log.info("txLog: {}" , createCmd);
 
-				}
+		fpcuster.setValidCrcyCnt(fpcuster.getValidCrcyCnt() + 1);
+		fPCustomerRepository.save(fpcuster);
+		log.info("fpcentity: {}", fpcuster);
+
+		FPAccountVo vo = fpAccountVoMapper.toVo(fpcuster);
+		log.info("FPAccountVo: {}", vo);
+
+		return vo;
+	}
+
+	// 新增交易明細
+	public TxLogVo writeTxLog(TxLogCreatCmd createCmd) {
+		log.info("createCmd: {}", createCmd);
+
+		TxLog txLog = fpTxLogtVoMapper.toEntity(createCmd);
+		txLogRepository.save(txLog);
+		log.info("txLog: {}", createCmd);
+		
+		TxLogVo vo = fpTxLogtVoMapper.toVo(txLog);
+		return vo;
+
+	}
 
 }

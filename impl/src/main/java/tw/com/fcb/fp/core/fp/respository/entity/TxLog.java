@@ -48,5 +48,11 @@ public class TxLog {
 		
 	@Column(name = "TX_AFT_BAL")
 	private BigDecimal balance;
+	
+	@Column(name = "TX_CR_DB_CODE")
+	private String cdCode;
+	
+	@Column(name = "TX_STATUS")
+	private String status;
 
 }

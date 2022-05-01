@@ -16,5 +16,9 @@ public class FPAccountVo {
 	private Integer validCrcyCnt;
 	
 	private String bookType;
+	
+	private String crcyCode;
+	
+	private Long txnLogId;
 
 }

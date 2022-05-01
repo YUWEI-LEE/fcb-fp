@@ -40,6 +40,18 @@ public interface FPAccountApi {
 										@PathVariable("account") String account,@PathVariable("crcy") String crcy,
 										@RequestParam BigDecimal addAmt,@RequestParam String memo);
 	
+	@PutMapping("/{account}/{crcy}/withdraw")
+	@Operation(description = "存入交易，若該幣別不存在則error", summary="支出交易")
+	public Response<FPAccountDto> withdrawFpm(@Parameter(description = "帳號", example = "09340123456")
+										@PathVariable("account") String account, 
+										@Parameter(description = "幣別", example = "USD")
+										@PathVariable("crcy") String crcy,
+										@RequestParam BigDecimal subAmt,@RequestParam(required = false) String memo );
+	
+	@PutMapping("/undo")
+	@Operation(description = "沖正，請輸入正向交易之回傳txnLogId欄位", summary="更正交易")
+	public Response<FPAccountDto> undoFpm(@RequestParam Long id);
+	
 	@PostMapping("/")
 	@Operation(description = "新增帳號、幣別資訊", summary="新增帳號、幣別資訊")
 	public Response<FPAccountDto> create(@RequestBody FPAccountCreateRequest createReqeust);
