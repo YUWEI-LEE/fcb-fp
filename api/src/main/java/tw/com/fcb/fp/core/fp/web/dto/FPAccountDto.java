@@ -31,4 +31,7 @@ public class FPAccountDto {
 
 	@Schema(description = "幣別")
 	private String crcyCode;
+	
+	@Schema(description = "交易序號")
+	private Long txnLogId;
 }
