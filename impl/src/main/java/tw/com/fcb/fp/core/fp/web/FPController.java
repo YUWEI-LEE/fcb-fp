@@ -179,6 +179,7 @@ public class FPController implements FPAccountApi {
 		Response<FPAccountDto> response = new Response<FPAccountDto>();
 
 		// 驗證 Request
+		
 		// 呼叫服務
 		try {
 			fpcService.undoFpm(id);
@@ -191,6 +192,25 @@ public class FPController implements FPAccountApi {
 		return response;
 	}
 
+// 補償交易：更新幣別餘額、刪除交易明細
+public Response<FPAccountDto> undoSystemFpm(@RequestParam("id") Long id) {
+		
+		Response<FPAccountDto> response = new Response<FPAccountDto>();
+
+		// 驗證 Request
+		
+		// 呼叫服務
+		try {
+			fpcService.undoSystemFpm(id);
+			response.of("0000", "交易成功", null);
+		} catch (Exception e) {
+			System.out.println("err =" + e);
+			response.of("9999", "交易失敗，請重新輸入", null);
+		}
+
+		return response;
+	}
+	
 //	開戶交易：新增帳號資訊，單幣別存摺增加幣別資訊
 	@Override
 	public Response<FPAccountDto> create(FPAccountCreateRequest createRequest) {

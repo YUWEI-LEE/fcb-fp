@@ -52,6 +52,10 @@ public interface FPAccountApi {
 	@Operation(description = "沖正，請輸入正向交易之回傳txnLogId欄位", summary="更正交易")
 	public Response<FPAccountDto> undoFpm(@RequestParam Long id);
 	
+	@PutMapping("/undo/system")
+	@Operation(description = "補償，請輸入正向交易之回傳txnLogId欄位(刪除交易明細)", summary="補償")
+	public Response<FPAccountDto> undoSystemFpm(@RequestParam Long id);
+	
 	@PostMapping("/")
 	@Operation(description = "新增帳號、幣別資訊", summary="新增帳號、幣別資訊")
 	public Response<FPAccountDto> create(@RequestBody FPAccountCreateRequest createReqeust);

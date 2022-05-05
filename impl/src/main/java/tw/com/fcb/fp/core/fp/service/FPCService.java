@@ -173,6 +173,17 @@ public class FPCService {
 		txLogVo.setStatus("D");
 	}
 
+	// 補償交易：更新幣別餘額、刪除交易明細
+		public void undoSystemFpm(Long id) {
+			TxLog txLog = txLogRepository.getById(id);
+			if(txLog.getCdCode().equals("存入")) {
+				updfpmBal(txLog.getAccount(),txLog.getCrcy(),BigDecimal.ZERO,txLog.getTxAmt());
+			}else {
+				updfpmBal(txLog.getAccount(),txLog.getCrcy(),txLog.getTxAmt(),BigDecimal.ZERO);
+			}
+			txLogRepository.delete(txLog);
+		}
+		
 	// 新增帳號資訊
 	public FPAccountVo createFpc(FPAccountCreateCmd createCmd) {
 		log.info("createCmd: {}", createCmd);
@@ -242,5 +253,5 @@ public class FPCService {
 		return vo;
 
 	}
-
+	
 }
