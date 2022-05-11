@@ -27,4 +27,7 @@ public class TxLogCreatCmd {
 	private String cdCode;
 	
 	private String status;
+	
+	private Long rollbackId;
+	
 }

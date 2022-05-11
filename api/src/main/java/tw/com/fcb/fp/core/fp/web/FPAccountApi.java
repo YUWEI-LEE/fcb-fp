@@ -34,11 +34,18 @@ public interface FPAccountApi {
 										@RequestParam BigDecimal addAmt,@RequestParam BigDecimal subAmt);
 	
 	
+	@PutMapping("/{account}/{crcy}/depositRollback")
+	@Operation(description = "存入交易，若幣別不存在則新增FPM", summary="存入交易有RollBackId")
+	public Response<FPAccountDto> depositFpmRollback(@Parameter(description = "帳號", example = "09340123456")
+										@PathVariable("account") String account,@PathVariable("crcy") String crcy,
+										@RequestParam BigDecimal addAmt,@RequestParam String memo,@RequestParam Long rollbackId);
+	
 	@PutMapping("/{account}/{crcy}/deposit")
 	@Operation(description = "存入交易，若幣別不存在則新增FPM", summary="存入交易")
 	public Response<FPAccountDto> depositFpm(@Parameter(description = "帳號", example = "09340123456")
 										@PathVariable("account") String account,@PathVariable("crcy") String crcy,
 										@RequestParam BigDecimal addAmt,@RequestParam String memo);
+	
 	
 	@PutMapping("/{account}/{crcy}/withdraw")
 	@Operation(description = "存入交易，若該幣別不存在則error", summary="支出交易")

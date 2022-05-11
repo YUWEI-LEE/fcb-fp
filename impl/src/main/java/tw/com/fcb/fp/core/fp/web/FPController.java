@@ -86,45 +86,7 @@ public class FPController implements FPAccountApi {
 		return response;
 	}
 	
-//	存入交易：增加該幣別餘額，若該幣別不存在則insert
-	public Response<FPAccountDto> depositFpm(@PathVariable("account") String account, @PathVariable("crcy") String crcy,
-			@RequestParam BigDecimal addAmt,@RequestParam(required = false) String memo ) {
-		
-		Response<FPAccountDto> response = new Response<FPAccountDto>();
-		
-		// 驗證 Request
-		FPAccountVo fpAccountVo = fpcService.getByfpcAccount(account);
-		if (fpAccountVo == null) {
-			response.of("D123", "此帳號 "+ account +" 不存在，請重新輸入", null); 
-			return response;
-		}
-		
-		// 呼叫服務
-		FPAccountCreateRequest createRequest = new FPAccountCreateRequest();
-		createRequest.setAccountNo(fpAccountVo.getAccountNo());
-		createRequest.setBookType(fpAccountVo.getBookType());
-		createRequest.setCrcyCode(crcy);
-		createRequest.setCustomerIdno(fpAccountVo.getCustomerIdno());
-		try {
-			CrcyCode.valueOf(crcy);
-			//無幣別餘額則新增fpm
-			if (fpcService.getByfpmCurrencyBal(account, crcy) == null) {
-				fpcService.createFpm(fpAccountDtoMapper.toCreateCmd(createRequest));
-			}
-			//入帳
-			FPAccountDto fpAccountDto = fpAccountDtoMapper.fromVo(fpcService.depositFpm(account, crcy, addAmt,memo));
-			response.of("0000", "交易成功", fpAccountDto);
-			
-		} catch (IllegalArgumentException e) {
-			response.of("M502", "幣別"+ crcy+"輸入錯誤", null);
-			return response;
-		} catch (Exception e) {
-			System.out.println("err =" + e);
-			response.of("9999", "交易失敗，請重新輸入", null);
-		}
 
-		return response;
-	}
 
 //	支出交易：減少該幣別餘額，若該幣別不存在則error
 	public Response<FPAccountDto> withdrawFpm(@PathVariable("account") String account, @PathVariable("crcy") String crcy,
@@ -158,7 +120,7 @@ public class FPController implements FPAccountApi {
 				}
 			}
 			//支出
-			FPAccountDto fpAccountDto = fpAccountDtoMapper.fromVo(fpcService.withdrawFpm(account, crcy, subAmt,memo));
+			FPAccountDto fpAccountDto = fpAccountDtoMapper.fromVo(fpcService.withdrawFpm(account, crcy, subAmt,memo,-1L));
 			log.info("fpAccountDto:{}", fpAccountDto);
 			response.of("0000", "交易成功", fpAccountDto);
 			
@@ -275,4 +237,51 @@ public Response<FPAccountDto> undoSystemFpm(@RequestParam("id") Long id) {
 		return response;
 	}
 
+	//存入交易：增加該幣別餘額，若該幣別不存在則insert
+	public Response<FPAccountDto> depositFpm(@PathVariable("account") String account, @PathVariable("crcy") String crcy,
+			@RequestParam BigDecimal addAmt,@RequestParam(required = false) String memo ) {
+		
+		return depositFpmRollback(account,crcy,addAmt,memo,-1L);
+	}
+
+	
+//	存入交易有RollBackId：增加該幣別餘額，若該幣別不存在則insert
+	public Response<FPAccountDto> depositFpmRollback(@PathVariable("account") String account, @PathVariable("crcy") String crcy,
+			@RequestParam BigDecimal addAmt,@RequestParam(required = false) String memo , Long rollbackId) {
+		
+		Response<FPAccountDto> response = new Response<FPAccountDto>();
+		
+		// 驗證 Request
+		FPAccountVo fpAccountVo = fpcService.getByfpcAccount(account);
+		if (fpAccountVo == null) {
+			response.of("D123", "此帳號 "+ account +" 不存在，請重新輸入", null); 
+			return response;
+		}
+		
+		// 呼叫服務
+		FPAccountCreateRequest createRequest = new FPAccountCreateRequest();
+		createRequest.setAccountNo(fpAccountVo.getAccountNo());
+		createRequest.setBookType(fpAccountVo.getBookType());
+		createRequest.setCrcyCode(crcy);
+		createRequest.setCustomerIdno(fpAccountVo.getCustomerIdno());
+		try {
+			CrcyCode.valueOf(crcy);
+			//無幣別餘額則新增fpm
+			if (fpcService.getByfpmCurrencyBal(account, crcy) == null) {
+				fpcService.createFpm(fpAccountDtoMapper.toCreateCmd(createRequest));
+			}
+			//入帳
+			FPAccountDto fpAccountDto = fpAccountDtoMapper.fromVo(fpcService.depositFpm(account, crcy, addAmt,memo,rollbackId));
+			response.of("0000", "交易成功", fpAccountDto);
+			
+		} catch (IllegalArgumentException e) {
+			response.of("M502", "幣別"+ crcy+"輸入錯誤", null);
+			return response;
+		} catch (Exception e) {
+			System.out.println("err =" + e);
+			response.of("9999", "交易失敗，請重新輸入", null);
+		}
+
+		return response;
+	}
 }

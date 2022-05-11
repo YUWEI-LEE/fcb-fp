@@ -7,5 +7,7 @@ import tw.com.fcb.fp.core.fp.respository.entity.TxLog;
 
 @Repository
 public interface TxLogRepository extends JpaRepository<TxLog , Long>{
+	
+	TxLog getByrollbackId(Long rollBackId);
 
 }

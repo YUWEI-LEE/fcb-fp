@@ -94,7 +94,7 @@ public class FPCService {
 	}
 
 	// 存入：更新幣別餘額
-	public FPAccountVo depositFpm(String account, String crcy, BigDecimal addAmt, String memo) {
+	public FPAccountVo depositFpm(String account, String crcy, BigDecimal addAmt, String memo,long rollbackId) {
 		FPMaster fPMaster = null;
 		FPCuster fpcuster = fPCustomerRepository.findByfpcAccount(account);
 		List<FPMaster> fpmArry = fpcuster.getFpmasters();
@@ -117,7 +117,7 @@ public class FPCService {
 		LocalDate todaysDate = LocalDate.now();
 		BigDecimal aftBal = getByfpmCurrencyBal(account, crcy);
 		TxLogCreatCmd txLogCreatCmd = TxLogCreatCmd.builder().account(account).crcy(crcy).txDate(todaysDate)
-				.txDTime(time).memo(txnMemo).txAmt(addAmt).balance(aftBal).cdCode("存入").status("A").build();
+				.txDTime(time).memo(txnMemo).txAmt(addAmt).balance(aftBal).cdCode("存入").status("A").rollbackId(rollbackId).build();
 		TxLogVo txLogVo = writeTxLog(txLogCreatCmd);
 
 		FPAccountVo fpAccountVo = fpAccountVoMapper.toVo(fpcuster);
@@ -127,7 +127,7 @@ public class FPCService {
 	}
 
 	// 支出：更新幣別餘額
-	public FPAccountVo withdrawFpm(String account, String crcy, BigDecimal subAmt, String memo) {
+	public FPAccountVo withdrawFpm(String account, String crcy, BigDecimal subAmt, String memo,long rollbackId) {
 		FPMaster fPMaster = null;
 		FPCuster fpcuster = fPCustomerRepository.findByfpcAccount(account);
 		List<FPMaster> fpmArry = fpcuster.getFpmasters();
@@ -150,7 +150,7 @@ public class FPCService {
 		LocalDate todaysDate = LocalDate.now();
 		BigDecimal aftBal = getByfpmCurrencyBal(account, crcy);
 		TxLogCreatCmd txLogCreatCmd = TxLogCreatCmd.builder().account(account).crcy(crcy).txDate(todaysDate)
-				.txDTime(time).memo(txnMemo).txAmt(subAmt).balance(aftBal).cdCode("支出").status("A").build();
+				.txDTime(time).memo(txnMemo).txAmt(subAmt).balance(aftBal).cdCode("支出").status("A").rollbackId(rollbackId).build();
 		TxLogVo txLogVo = writeTxLog(txLogCreatCmd);
 		
 		FPAccountVo fpAccountVo = fpAccountVoMapper.toVo(fpcuster);
@@ -161,13 +161,13 @@ public class FPCService {
 
 	// 沖正：輸入txLog_id更新幣別餘額
 	public void undoFpm(Long id) {
-		TxLog txLog = txLogRepository.getById(id);
+		TxLog txLog = txLogRepository.getByrollbackId(id);
 		txLog.setStatus("X");
 		FPAccountVo fpAccountVo;
 		if (txLog.getCdCode().equals("存入")) {
-			fpAccountVo = withdrawFpm(txLog.getAccount(), txLog.getCrcy(), txLog.getTxAmt(), "沖正存入");
+			fpAccountVo = withdrawFpm(txLog.getAccount(), txLog.getCrcy(), txLog.getTxAmt(), "沖正存入",-1);
 		} else {
-			fpAccountVo = depositFpm(txLog.getAccount(), txLog.getCrcy(), txLog.getTxAmt(), "沖正支出");	
+			fpAccountVo = depositFpm(txLog.getAccount(), txLog.getCrcy(), txLog.getTxAmt(), "沖正支出",-1);	
 		}
 		TxLog txLogVo = txLogRepository.getById(fpAccountVo.getTxnLogId());
 		txLogVo.setStatus("D");
@@ -175,7 +175,7 @@ public class FPCService {
 
 	// 補償交易：更新幣別餘額、刪除交易明細
 		public void undoSystemFpm(Long id) {
-			TxLog txLog = txLogRepository.getById(id);
+			TxLog txLog = txLogRepository.getByrollbackId(id);
 			if(txLog.getCdCode().equals("存入")) {
 				updfpmBal(txLog.getAccount(),txLog.getCrcy(),BigDecimal.ZERO,txLog.getTxAmt());
 			}else {

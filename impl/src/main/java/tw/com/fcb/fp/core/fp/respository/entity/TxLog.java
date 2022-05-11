@@ -28,6 +28,9 @@ public class TxLog {
 	@Column(name = "ID")
 	private Long id;
 	
+	@Column(name = "ROLLBACK_ID")
+	private Long rollbackId;
+	
 	@Column(name = "TX_ACCOUNT")
 	private String account;
 	
