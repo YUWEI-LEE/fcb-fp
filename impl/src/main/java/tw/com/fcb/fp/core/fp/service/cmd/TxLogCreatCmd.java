@@ -14,7 +14,7 @@ public class TxLogCreatCmd {
 	
 	private String crcy;
 	
-	private LocalDate txDate;
+	private String txDate;
 	
 	private String txDTime;
 	

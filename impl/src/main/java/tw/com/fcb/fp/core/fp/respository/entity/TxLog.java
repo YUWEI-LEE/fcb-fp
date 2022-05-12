@@ -38,7 +38,7 @@ public class TxLog {
 	private String crcy;
 	
 	@Column(name = "TX_DATE")
-	private LocalDate txDate;
+	private String txDate;
 	
 	@Column(name = "TX_TIME")
 	private String txDTime;

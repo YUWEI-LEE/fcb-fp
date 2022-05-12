@@ -114,7 +114,7 @@ public class FPCService {
 			txnMemo = memo;
 		}
 		String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-		LocalDate todaysDate = LocalDate.now();
+		String todaysDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
 		BigDecimal aftBal = getByfpmCurrencyBal(account, crcy);
 		TxLogCreatCmd txLogCreatCmd = TxLogCreatCmd.builder().account(account).crcy(crcy).txDate(todaysDate)
 				.txDTime(time).memo(txnMemo).txAmt(addAmt).balance(aftBal).cdCode("存入").status("A").rollbackId(rollbackId).build();
@@ -147,7 +147,7 @@ public class FPCService {
 			txnMemo = memo;
 		}
 		String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-		LocalDate todaysDate = LocalDate.now();
+		String todaysDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
 		BigDecimal aftBal = getByfpmCurrencyBal(account, crcy);
 		TxLogCreatCmd txLogCreatCmd = TxLogCreatCmd.builder().account(account).crcy(crcy).txDate(todaysDate)
 				.txDTime(time).memo(txnMemo).txAmt(subAmt).balance(aftBal).cdCode("支出").status("A").rollbackId(rollbackId).build();
